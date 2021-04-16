@@ -9,18 +9,15 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+
+// At the top level of your kotlin file:
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 class MainActivity : AppCompatActivity() {
-
-    // At the top level of your kotlin file:
-    val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,6 +28,27 @@ class MainActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 findViewById<TextView>(R.id.textView).text = readUserName()
             }
+            delay(2000)
+            incrementCounter()
+            withContext(Dispatchers.Main) {
+                findViewById<TextView>(R.id.textView).text = "${getCounter()}"
+            }
+        }
+    }
+
+    private suspend fun getCounter(): Int {
+        val exampleCounterFlow: Flow<Int> = settingsDataStore.data
+            .map { settings ->
+                settings.exampleCounter
+            }
+        return exampleCounterFlow.first()
+    }
+
+    private suspend fun incrementCounter() {
+        settingsDataStore.updateData { currentSettings ->
+            currentSettings.toBuilder()
+                .setExampleCounter(currentSettings.exampleCounter + 2)
+                .build()
         }
     }
 
@@ -44,9 +62,9 @@ class MainActivity : AppCompatActivity() {
     private suspend fun readUserName(): String {
         val userName = stringPreferencesKey("userName")
         val userNameFlow: Flow<String> = dataStore.data
-                .map { preferences ->
-                    preferences[userName] ?: ""
-                }
+            .map { preferences ->
+                preferences[userName] ?: ""
+            }
         return userNameFlow.first()
     }
 }
